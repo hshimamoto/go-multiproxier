@@ -13,10 +13,12 @@ import (
     "net"
     "sync"
     "time"
+
+    "github.com/hshimamoto/go-multiproxier/webhost"
 )
 
 type Cluster struct {
-    Host WebHost
+    Host webhost.WebHost
     CertHost string
     OutProxies *list.List
     CertOK *time.Time

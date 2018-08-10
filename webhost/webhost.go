@@ -1,10 +1,10 @@
-// go-multiproxier / webhost.go
+// go-multiproxier/webhost
 //
 // MIT License Copyright(c) 2018 Hiroshi Shimamoto
 // vim:set sw=4 sts=4:
 //
 
-package main
+package webhost
 
 import (
     "strings"

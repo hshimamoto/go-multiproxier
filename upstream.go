@@ -20,6 +20,7 @@ import (
     "time"
 
     "github.com/hshimamoto/go-multiproxier/connection"
+    "github.com/hshimamoto/go-multiproxier/webhost"
 )
 
 type Upstream struct {
@@ -28,8 +29,8 @@ type Upstream struct {
     Clusters [](*Cluster)
     TempClusters [](*Cluster)
     DefaultCluster *Cluster
-    DirectHosts [](*WebHost)
-    BlockHosts [](*BlockHost)
+    DirectHosts [](*webhost.WebHost)
+    BlockHosts [](*webhost.BlockHost)
     //
     CertCheckInterval time.Duration
 }
@@ -77,7 +78,7 @@ func (up *Upstream)lookupCluster(host string) *Cluster {
 	tcl.OutProxies.PushBack(outproxy)
     }
     up.DefaultCluster.m.Unlock()
-    tcl.Host = *NewWebHost(host)
+    tcl.Host = *webhost.NewWebHost(host)
     tcl.CertHost = "Temporary for " + host
     tcl.expire = time.Now().Add(time.Hour)
     tcl.m = new(sync.Mutex)
@@ -434,8 +435,8 @@ func (up *Upstream)Serve() {
 
 func NewUpstream(path string) (*Upstream, error) {
     up := &Upstream{}
-    up.DirectHosts = [](*WebHost){}
-    up.BlockHosts = [](*BlockHost){}
+    up.DirectHosts = [](*webhost.WebHost){}
+    up.BlockHosts = [](*webhost.BlockHost){}
     up.Clusters = [](*Cluster){}
     up.TempClusters = [](*Cluster){}
 
@@ -472,19 +473,19 @@ func NewUpstream(path string) (*Upstream, error) {
 	case "[proxy]":
 	    up.Addr = line
 	case "[direct]":
-	    up.DirectHosts = append(up.DirectHosts, NewWebHost(line))
+	    up.DirectHosts = append(up.DirectHosts, webhost.NewWebHost(line))
 	case "[cluster]":
 	    cluster := &Cluster{}
 	    l := strings.Split(line, "=")
 	    cluster.CertHost = l[0]
-	    cluster.Host = *NewWebHost(l[1])
+	    cluster.Host = *webhost.NewWebHost(l[1])
 	    if cluster.Host.Wild {
 		wilds = append(wilds, cluster)
 	    } else {
 		nowilds = append(nowilds, cluster)
 	    }
 	case "[block]":
-	    up.BlockHosts = append(up.BlockHosts, NewBlockHost(line))
+	    up.BlockHosts = append(up.BlockHosts, webhost.NewBlockHost(line))
 	}
     }
     up.Clusters = append(nowilds, wilds...)
