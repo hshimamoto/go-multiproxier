@@ -25,7 +25,7 @@ import (
 
 type Upstream struct {
     Listen string
-    Addr string
+    MiddleAddr string
     Clusters [](*Cluster)
     TempClusters [](*Cluster)
     DefaultCluster *Cluster
@@ -96,7 +96,7 @@ func (up *Upstream)handleConnect(w http.ResponseWriter,r *http.Request) {
     }
     if port != "443" || up.checkDirect(host) {
 	log.Println("direct connection")
-	rconn, err := net.Dial("tcp", up.Addr)
+	rconn, err := net.Dial("tcp", up.MiddleAddr)
 	if err != nil {
 	    log.Println("net.Dial:", err)
 	    return
@@ -119,7 +119,7 @@ func (up *Upstream)handleConnect(w http.ResponseWriter,r *http.Request) {
     log.Println("cluster:", cluster)
 
     c := &Connection{ domain: host, r: r, w: w, proc: tryThisConn }
-    err := cluster.handleConnection(up.Addr, c)
+    err := cluster.handleConnection(up.MiddleAddr, c)
     if err != nil {
 	// TODO: do something?
 	w.WriteHeader(http.StatusForbidden)
@@ -129,7 +129,7 @@ func (up *Upstream)handleConnect(w http.ResponseWriter,r *http.Request) {
 }
 
 func (up *Upstream)handleHTTP(w http.ResponseWriter, r *http.Request) {
-    conn, err := net.Dial("tcp", up.Addr) // Dial to upstream
+    conn, err := net.Dial("tcp", up.MiddleAddr) // Dial to upstream
     if err != nil {
 	log.Println("net.Dial:", err)
 	w.WriteHeader(http.StatusInternalServerError)
@@ -194,7 +194,7 @@ func (up *Upstream)dumpConfig(w http.ResponseWriter, r *http.Request) {
 	config += outproxy.Addr + "\n"
     }
     config += "[proxy]\n"
-    config += up.Addr + "\n"
+    config += up.MiddleAddr + "\n"
     config += "[direct]\n"
     for _, h := range(up.DirectHosts) {
 	config += h.String() + "\n"
@@ -383,7 +383,7 @@ func (up *Upstream)CertCheckCluster(domain string, cluster *Cluster) {
 	log.Println("Start CertCheck " + domain + " cluster:", cluster)
 
 	c := &Connection{ domain: domain, proc: certcheckThisConn }
-	err := cluster.handleConnection(up.Addr, c)
+	err := cluster.handleConnection(up.MiddleAddr, c)
 	if err != nil {
 	    cluster.CertOK = nil
 	    log.Println("Fail CertCheck " + domain + " cluster:", cluster)
@@ -471,7 +471,7 @@ func NewUpstream(path string) (*Upstream, error) {
 	case "[upstream]":
 	    proxies = append(proxies, &OutProxy { Addr: line, Bad: now, Timeout: 5 * time.Second, NumRunning: 0 })
 	case "[proxy]":
-	    up.Addr = line
+	    up.MiddleAddr = line
 	case "[direct]":
 	    up.DirectHosts = append(up.DirectHosts, webhost.NewWebHost(line))
 	case "[cluster]":
