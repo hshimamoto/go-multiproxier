@@ -18,6 +18,8 @@ import (
     "strings"
     "sync"
     "time"
+
+    "github.com/hshimamoto/go-multiproxier/connection"
 )
 
 type Upstream struct {
@@ -107,7 +109,7 @@ func (up *Upstream)handleConnect(w http.ResponseWriter,r *http.Request) {
 
 	r.WriteProxy(rconn)
 
-	transfer(lconn.(*net.TCPConn), rconn.(*net.TCPConn))
+	connection.Transfer(lconn, rconn)
 
 	return
     }

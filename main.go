@@ -11,7 +11,6 @@ package main
 import (
     "crypto/tls"
     "errors"
-    "io"
     "log"
     "net"
     "net/http"
@@ -19,6 +18,8 @@ import (
     "runtime"
     "strings"
     "time"
+
+    "github.com/hshimamoto/go-multiproxier/connection"
 )
 
 var timeout time.Duration = 10 * time.Second
@@ -57,24 +58,6 @@ func openProxy(proxy, outproxy string) (*net.TCPConn, error, bool) {
 	return nil, errors.New("CONNECT NG " + err.Error()), true
     }
     return conn.(*net.TCPConn), nil, false
-}
-
-func transfer(lconn, rconn *net.TCPConn) {
-    d1 := make(chan bool)
-    d2 := make(chan bool)
-    go func() {
-	io.Copy(rconn, lconn)
-	d1 <- true
-    }()
-    go func() {
-	io.Copy(lconn, rconn)
-	d2 <- true
-    }()
-    select {
-    case <-d1: go func() { <-d2 }()
-    case <-d2: go func() { <-d1 }()
-    }
-    time.Sleep(time.Second)
 }
 
 type Connection struct {
@@ -178,7 +161,7 @@ func tryThisConn(conn *net.TCPConn, done chan bool, c *Connection) (error, bool)
 
 	lconn.Write(buf)
 
-	transfer(lconn.(*net.TCPConn), conn)
+	connection.Transfer(lconn, conn)
 
 	log.Println("done communication for " + c.domain)
 
