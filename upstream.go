@@ -20,6 +20,7 @@ import (
     "time"
 
     "github.com/hshimamoto/go-multiproxier/connection"
+    "github.com/hshimamoto/go-multiproxier/outproxy"
     "github.com/hshimamoto/go-multiproxier/webhost"
 )
 
@@ -74,7 +75,7 @@ func (up *Upstream)lookupCluster(host string) *Cluster {
     tcl.OutProxies = list.New()
     up.DefaultCluster.m.Lock()
     for e := up.DefaultCluster.OutProxies.Front(); e != nil; e = e.Next() {
-	outproxy := e.Value.(*OutProxy)
+	outproxy := e.Value.(*outproxy.OutProxy)
 	tcl.OutProxies.PushBack(outproxy)
     }
     up.DefaultCluster.m.Unlock()
@@ -158,7 +159,7 @@ func (up *Upstream)dumpOutProxies(w http.ResponseWriter, r *http.Request) {
     out := ""
     dc.m.Lock()
     for e := dc.OutProxies.Front(); e != nil; e = e.Next() {
-	outproxy := e.Value.(*OutProxy)
+	outproxy := e.Value.(*outproxy.OutProxy)
 	out += outproxy.Line()
     }
     dc.m.Unlock()
@@ -190,7 +191,7 @@ func (up *Upstream)dumpConfig(w http.ResponseWriter, r *http.Request) {
     config += "[upstream]\n"
     proxies := up.DefaultCluster.OutProxies
     for e := proxies.Front(); e != nil; e = e.Next() {
-	outproxy := e.Value.(*OutProxy)
+	outproxy := e.Value.(*outproxy.OutProxy)
 	config += outproxy.Addr + "\n"
     }
     config += "[proxy]\n"
@@ -233,7 +234,7 @@ func (up *Upstream)apiCluster(api []string, w http.ResponseWriter, r *http.Reque
 	cluster.m.Lock()
 	e := cluster.OutProxies.Front()
 	cluster.OutProxies.MoveToBack(e)
-	outproxy := e.Value.(*OutProxy)
+	outproxy := e.Value.(*outproxy.OutProxy)
 	cluster.m.Unlock()
 	w.Write([]byte("bad outproxy " + outproxy.Addr + "\n"))
     }
@@ -293,7 +294,7 @@ func (up *Upstream)apiTemp(api []string, w http.ResponseWriter, r *http.Request)
 	cluster.m.Lock()
 	e := cluster.OutProxies.Front()
 	cluster.OutProxies.MoveToBack(e)
-	outproxy := e.Value.(*OutProxy)
+	outproxy := e.Value.(*outproxy.OutProxy)
 	cluster.m.Unlock()
 	w.Write([]byte("bad outproxy " + outproxy.Addr + "\n"))
     }
@@ -307,9 +308,9 @@ func (up *Upstream)apiOutProxy(api []string, w http.ResponseWriter, r *http.Requ
     cmd := api[1]
     // lookup outproxy
     up.DefaultCluster.m.Lock()
-    outproxy := func() *OutProxy {
+    outproxy := func() *outproxy.OutProxy {
 	for e := up.DefaultCluster.OutProxies.Front(); e != nil; e = e.Next() {
-	    o := e.Value.(*OutProxy)
+	    o := e.Value.(*outproxy.OutProxy)
 	    if o.Addr == name {
 		return o
 	    }
@@ -453,7 +454,7 @@ func NewUpstream(path string) (*Upstream, error) {
 
     lines := strings.Split(string(config), "\n")
     key := ""
-    proxies := [](*OutProxy){}
+    proxies := [](*outproxy.OutProxy){}
     wilds := [](*Cluster){}
     nowilds := [](*Cluster){}
     now := time.Now()
@@ -469,7 +470,7 @@ func NewUpstream(path string) (*Upstream, error) {
 	case "[server]":
 	    up.Listen = line
 	case "[upstream]":
-	    proxies = append(proxies, &OutProxy { Addr: line, Bad: now, Timeout: 5 * time.Second, NumRunning: 0 })
+	    proxies = append(proxies, &outproxy.OutProxy { Addr: line, Bad: now, Timeout: 5 * time.Second, NumRunning: 0 })
 	case "[proxy]":
 	    up.MiddleAddr = line
 	case "[direct]":

@@ -20,6 +20,7 @@ import (
     "time"
 
     "github.com/hshimamoto/go-multiproxier/connection"
+    "github.com/hshimamoto/go-multiproxier/outproxy"
 )
 
 var timeout time.Duration = 10 * time.Second
@@ -65,7 +66,7 @@ type Connection struct {
     r *http.Request
     w http.ResponseWriter
     proc ConnectionProc
-    outproxy *OutProxy
+    outproxy *outproxy.OutProxy
 }
 
 func (c *Connection)String() string {
@@ -82,7 +83,7 @@ func certcheckThisConn(conn *net.TCPConn, done chan bool, c *Connection) (error,
     outproxy := c.outproxy
     msg := "CONNECT " + c.domain + ":443 HTTP/1.0\r\n\r\n"
     conn.Write([]byte(msg))
-    buf, err := outproxy.checkConnect(conn, "certcheckThisConn")
+    buf, err := outproxy.CheckConnect(conn, "certcheckThisConn")
     if err != nil {
 	return err, true
     }
@@ -141,7 +142,7 @@ func tryThisConn(conn *net.TCPConn, done chan bool, c *Connection) (error, bool)
     outproxy := c.outproxy
     // send original CONNECT
     c.r.WriteProxy(conn)
-    buf, err := outproxy.checkConnect(conn, "tryThisConn")
+    buf, err := outproxy.CheckConnect(conn, "tryThisConn")
     if err != nil {
 	return err, true
     }
@@ -180,7 +181,7 @@ func makeClusterBlob(c *Cluster) string {
     }
     c.m.Lock()
     for e := c.OutProxies.Front(); e != nil; e = e.Next() {
-	outproxy := e.Value.(*OutProxy)
+	outproxy := e.Value.(*outproxy.OutProxy)
 	out += " " + outproxy.Line()
     }
     c.m.Unlock()

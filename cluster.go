@@ -15,6 +15,7 @@ import (
     "time"
 
     "github.com/hshimamoto/go-multiproxier/webhost"
+    "github.com/hshimamoto/go-multiproxier/outproxy"
 )
 
 type Cluster struct {
@@ -78,10 +79,10 @@ func (cl *Cluster)handleConnection(proxy string, c *Connection) error {
     e := cl.OutProxies.Front()
     cl.m.Unlock()
 
-    used := [](*OutProxy){}
+    used := [](*outproxy.OutProxy){}
 
     for e != nil {
-	outproxy := e.Value.(*OutProxy)
+	outproxy := e.Value.(*outproxy.OutProxy)
 	if outproxy.Bad.After(time.Now()) {
 	    cl.m.Lock()
 	    e = e.Next()

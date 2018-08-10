@@ -1,10 +1,10 @@
-// go-multiproxier / outproxy.go
+// go-multiproxier/outproxy
 //
 // MIT License Copyright(c) 2018 Hiroshi Shimamoto
 // vim:set sw=4 sts=4:
 //
 
-package main
+package outproxy
 
 import (
     "fmt"
@@ -34,7 +34,7 @@ func (outproxy *OutProxy)Line() string {
     return fmt.Sprintf("%s %s %d %d to:%v\n", st, name, succ, fail, to)
 }
 
-func (outproxy *OutProxy)checkConnect(conn *net.TCPConn, label string) ([]byte, error) {
+func (outproxy *OutProxy)CheckConnect(conn *net.TCPConn, label string) ([]byte, error) {
     buf := make([]byte, 256)
     conn.SetReadDeadline(time.Now().Add(outproxy.Timeout))
     n, err := conn.Read(buf)
