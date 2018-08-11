@@ -7,8 +7,6 @@
 package upstream
 
 import (
-    "crypto/tls"
-    "fmt"
     "io"
     "io/ioutil"
     "log"
@@ -34,98 +32,6 @@ type Upstream struct {
     BlockHosts [](*webhost.BlockHost)
     //
     CertCheckInterval time.Duration
-}
-
-func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
-    outer := c.GetOutProxy()
-    msg := "CONNECT " + c.Domain() + ":443 HTTP/1.0\r\n\r\n"
-    conn.Write([]byte(msg))
-    buf, err := outer.CheckConnect(conn, "certcheckThisConn")
-    if err != nil {
-	return err, true
-    }
-    err = connection.CheckConnectOK(string(buf))
-    if err != nil {
-	return fmt.Errorf("Server returns error: %v", err), true
-    }
-
-    log.Println("start certcheck communication for " + c.Domain() + " with " + outer.Addr)
-
-    client := tls.Client(conn, &tls.Config{ ServerName: c.Domain() })
-    defer client.Close()
-
-    err = client.Handshake()
-    if err != nil {
-	return err, false // no penalty
-    }
-    log.Println("cert for " + c.Domain() + " good")
-
-    getreq := "GET / HTTP/1.1\r\n"
-    getreq += "Host: " + c.Domain() + "\r\n"
-    getreq += "User-Agent: curl/7.58.0\r\n"
-    getreq += "Accept: */*\r\n"
-    getreq += "\r\n"
-    client.Write([]byte(getreq))
-
-    buf = make([]byte, 4096)
-    client.SetReadDeadline(time.Now().Add(outer.Timeout))
-    n, err := client.Read(buf)
-    if n > 0 {
-	resp := string(buf[:n])
-	if strings.Index(resp, `<title>Attention Required! | Cloudflare</title>`) > 0 {
-	    return fmt.Errorf("Cloudflare detect"), false
-	}
-	if strings.Index(resp, `<script src="https://www.google.com/recaptcha/api.js" async defer></script>`) > 0 {
-	    return fmt.Errorf("Google detect"), false
-	}
-    } else {
-	if err != nil {
-	    return fmt.Errorf("waiting GET / response %v", err), false
-	}
-	return fmt.Errorf("remote TLS connection closed"), false
-    }
-
-    // send done in background
-    go func() {
-	defer conn.Close()
-	log.Println("done certcheck for " + c.Domain() + " ok")
-	done <- true
-    }()
-
-    return nil, false
-}
-
-func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
-    outer := c.GetOutProxy()
-    // send original CONNECT
-    c.ReqWriteProxy(conn)
-    buf, err := outer.CheckConnect(conn, "tryThisConn")
-    if err != nil {
-	return err, true
-    }
-    err = connection.CheckConnectOK(string(buf))
-    if err != nil {
-	return fmt.Errorf("Server returns error: %v", err), false
-    }
-
-    log.Println("start communication for " + c.Domain() + " with " + outer.Addr)
-
-    go func() {
-	defer conn.Close()
-	// start hijacking
-	lconn := c.Hijack()
-	defer lconn.Close()
-
-	lconn.Write(buf)
-
-	connection.Transfer(lconn, conn)
-
-	log.Println("done communication for " + c.Domain())
-
-	done <- true
-    }()
-
-    return nil, false
 }
 
 func makeClusterBlob(c *cluster.Cluster) string {
@@ -225,14 +131,7 @@ func (up *Upstream)handleConnect(w http.ResponseWriter,r *http.Request) {
     cluster := up.lookupCluster(host)
     log.Println("cluster:", cluster)
 
-    c := connection.New(host, r, w, tryThisConn)
-    err := cluster.HandleConnection(up.MiddleAddr, c)
-    if err != nil {
-	// TODO: do something?
-	w.WriteHeader(http.StatusForbidden)
-	return
-    }
-    // temporary cluster
+    cluster.Run(up.MiddleAddr, host, w, r)
 }
 
 func (up *Upstream)handleHTTP(w http.ResponseWriter, r *http.Request) {
@@ -273,27 +172,9 @@ func (up *Upstream)Handler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-func (up *Upstream)CertCheckCluster(domain string, cluster *cluster.Cluster) {
-    // do background
-    go func() {
-	log.Println("Start CertCheck " + domain + " cluster:", cluster)
-
-	c := connection.New(domain, nil, nil, certcheckThisConn)
-	err := cluster.HandleConnection(up.MiddleAddr, c)
-	if err != nil {
-	    cluster.CertOK = nil
-	    log.Println("Fail CertCheck " + domain + " cluster:", cluster)
-	    return
-	}
-	t := time.Now()
-	cluster.CertOK = &t
-	log.Println("Done CertCheck " + domain + " cluster:", cluster)
-    }()
-}
-
 func (up *Upstream)DoCertCheck() {
     for _, cluster := range(up.Clusters) {
-	go up.CertCheckCluster(cluster.CertHost, cluster)
+	go cluster.CertCheck(up.MiddleAddr)
 	time.Sleep(time.Second)
     }
 }
