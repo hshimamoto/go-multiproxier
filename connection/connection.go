@@ -7,9 +7,15 @@
 package connection
 
 import (
+    "errors"
     "io"
+    "log"
     "net"
+    "net/http"
+    "strings"
     "time"
+
+    "github.com/hshimamoto/go-multiproxier/outproxy"
 )
 
 func Transfer(lconn, rconn net.Conn) {
@@ -28,4 +34,75 @@ func Transfer(lconn, rconn net.Conn) {
     case <-d2: go func() { <-d1 }()
     }
     time.Sleep(time.Second)
+}
+
+var timeout time.Duration = 10 * time.Second
+
+func CheckConnectOK(resp string) error {
+    lines := strings.Split(resp, "\r\n")
+    codes := strings.Split(lines[0], " ")
+    if codes[1] != "200" {
+	return errors.New(lines[0])
+    }
+    return nil
+}
+
+func OpenProxy(proxy, outproxy string) (*net.TCPConn, error, bool) {
+    conn, err := net.DialTimeout("tcp", proxy, timeout)
+    if err != nil {
+	return nil, err, false
+    }
+    msg := "CONNECT " + outproxy + " HTTP/1.0\r\n\r\n"
+    conn.Write([]byte(msg))
+    buf := make([]byte, 256) // just for 200 OK
+    conn.SetReadDeadline(time.Now().Add(timeout))
+    n, err := conn.Read(buf) // expect 200 OK
+    if err != nil || n == 0 {
+	conn.Close()
+	if err != nil {
+	    log.Println("proxy Read fail:", err)
+	} else {
+	    log.Println("proxy closed")
+	}
+	return nil, errors.New("READ NG"), true
+    }
+    err = CheckConnectOK(string(buf[:n]))
+    if err != nil {
+	conn.Close()
+	return nil, errors.New("CONNECT NG " + err.Error()), true
+    }
+    return conn.(*net.TCPConn), nil, false
+}
+
+type Connection struct {
+    Domain string
+    r *http.Request
+    w http.ResponseWriter
+    Proc ConnectionProc
+    Outproxy *outproxy.OutProxy
+}
+
+func New(domain string, r *http.Request, w http.ResponseWriter, proc ConnectionProc) *Connection {
+    c := &Connection{ Domain: domain, r: r, w: w, Proc: proc }
+    return c
+}
+
+func (c *Connection)String() string {
+    t := "Normal"
+    if c.w == nil {
+	t = "CertCheck"
+    }
+    return t + " for " + c.Domain
+}
+
+type ConnectionProc func(*net.TCPConn, chan bool, *Connection) (error, bool)
+
+func (c *Connection)ReqWriteProxy(conn net.Conn) {
+    c.r.WriteProxy(conn)
+}
+
+func (c *Connection)Hijack() net.Conn {
+    h, _ := c.w.(http.Hijacker)
+    conn, _, _ := h.Hijack()
+    return conn
 }

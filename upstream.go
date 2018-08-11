@@ -12,13 +12,13 @@ import (
     "io"
     "io/ioutil"
     "log"
-    "net/http"
     "net"
+    "net/http"
     "os"
     "strings"
-    "sync"
     "time"
 
+    "github.com/hshimamoto/go-multiproxier/cluster"
     "github.com/hshimamoto/go-multiproxier/connection"
     "github.com/hshimamoto/go-multiproxier/outproxy"
     "github.com/hshimamoto/go-multiproxier/webhost"
@@ -27,9 +27,9 @@ import (
 type Upstream struct {
     Listen string
     MiddleAddr string
-    Clusters [](*Cluster)
-    TempClusters [](*Cluster)
-    DefaultCluster *Cluster
+    Clusters [](*cluster.Cluster)
+    TempClusters [](*cluster.Cluster)
+    DefaultCluster *cluster.Cluster
     DirectHosts [](*webhost.WebHost)
     BlockHosts [](*webhost.BlockHost)
     //
@@ -55,7 +55,7 @@ func (up *Upstream)checkDirect(host string) bool {
     return false
 }
 
-func (up *Upstream)lookupCluster(host string) *Cluster {
+func (up *Upstream)lookupCluster(host string) *cluster.Cluster {
     for _, cluster := range(up.Clusters) {
 	if cluster.Host.Match(host) {
 	    return cluster
@@ -63,7 +63,7 @@ func (up *Upstream)lookupCluster(host string) *Cluster {
     }
     for _, cluster := range(up.TempClusters) {
 	if cluster.Host.Match(host) {
-	    cluster.expire = time.Now().Add(time.Hour)
+	    cluster.Expire = time.Now().Add(time.Hour)
 	    return cluster
 	}
     }
@@ -71,18 +71,17 @@ func (up *Upstream)lookupCluster(host string) *Cluster {
 	return up.DefaultCluster
     }
     // create temporary
-    tcl := &Cluster{}
+    tcl := cluster.New()
     tcl.OutProxies = list.New()
-    up.DefaultCluster.m.Lock()
+    up.DefaultCluster.Lock()
     for e := up.DefaultCluster.OutProxies.Front(); e != nil; e = e.Next() {
 	outproxy := e.Value.(*outproxy.OutProxy)
 	tcl.OutProxies.PushBack(outproxy)
     }
-    up.DefaultCluster.m.Unlock()
+    up.DefaultCluster.Unlock()
     tcl.Host = *webhost.NewWebHost(host)
     tcl.CertHost = "Temporary for " + host
-    tcl.expire = time.Now().Add(time.Hour)
-    tcl.m = new(sync.Mutex)
+    tcl.Expire = time.Now().Add(time.Hour)
     up.TempClusters = append(up.TempClusters, tcl)
     return tcl
 }
@@ -119,8 +118,8 @@ func (up *Upstream)handleConnect(w http.ResponseWriter,r *http.Request) {
     cluster := up.lookupCluster(host)
     log.Println("cluster:", cluster)
 
-    c := &Connection{ domain: host, r: r, w: w, proc: tryThisConn }
-    err := cluster.handleConnection(up.MiddleAddr, c)
+    c := connection.New(host, r, w, tryThisConn)
+    err := cluster.HandleConnection(up.MiddleAddr, c)
     if err != nil {
 	// TODO: do something?
 	w.WriteHeader(http.StatusForbidden)
@@ -157,12 +156,12 @@ func (up *Upstream)dumpOutProxies(w http.ResponseWriter, r *http.Request) {
     // ignore request
     dc := up.DefaultCluster
     out := ""
-    dc.m.Lock()
+    dc.Lock()
     for e := dc.OutProxies.Front(); e != nil; e = e.Next() {
 	outproxy := e.Value.(*outproxy.OutProxy)
 	out += outproxy.Line()
     }
-    dc.m.Unlock()
+    dc.Unlock()
     w.Write([]byte(out))
 }
 
@@ -218,7 +217,7 @@ func (up *Upstream)apiCluster(api []string, w http.ResponseWriter, r *http.Reque
     cname := api[0]
     cmd := api[1]
     // lookup cluster
-    cluster := func() *Cluster {
+    cluster := func() *cluster.Cluster {
 	for _, c := range(up.Clusters) {
 	    if cname == c.CertHost {
 		return c
@@ -231,11 +230,11 @@ func (up *Upstream)apiCluster(api []string, w http.ResponseWriter, r *http.Reque
     }
     switch cmd {
     case "bad":
-	cluster.m.Lock()
+	cluster.Lock()
 	e := cluster.OutProxies.Front()
 	cluster.OutProxies.MoveToBack(e)
 	outproxy := e.Value.(*outproxy.OutProxy)
-	cluster.m.Unlock()
+	cluster.Unlock()
 	w.Write([]byte("bad outproxy " + outproxy.Addr + "\n"))
     }
 }
@@ -278,7 +277,7 @@ func (up *Upstream)apiTemp(api []string, w http.ResponseWriter, r *http.Request)
     }
     cmd := api[1]
     // lookup cluster
-    cluster := func() *Cluster {
+    cluster := func() *cluster.Cluster {
 	for _, c := range(up.Clusters) {
 	    if cname == c.CertHost {
 		return c
@@ -291,11 +290,11 @@ func (up *Upstream)apiTemp(api []string, w http.ResponseWriter, r *http.Request)
     }
     switch cmd {
     case "bad":
-	cluster.m.Lock()
+	cluster.Lock()
 	e := cluster.OutProxies.Front()
 	cluster.OutProxies.MoveToBack(e)
 	outproxy := e.Value.(*outproxy.OutProxy)
-	cluster.m.Unlock()
+	cluster.Unlock()
 	w.Write([]byte("bad outproxy " + outproxy.Addr + "\n"))
     }
 }
@@ -307,7 +306,7 @@ func (up *Upstream)apiOutProxy(api []string, w http.ResponseWriter, r *http.Requ
     name := api[0]
     cmd := api[1]
     // lookup outproxy
-    up.DefaultCluster.m.Lock()
+    up.DefaultCluster.Lock()
     outproxy := func() *outproxy.OutProxy {
 	for e := up.DefaultCluster.OutProxies.Front(); e != nil; e = e.Next() {
 	    o := e.Value.(*outproxy.OutProxy)
@@ -317,7 +316,7 @@ func (up *Upstream)apiOutProxy(api []string, w http.ResponseWriter, r *http.Requ
 	}
 	return nil
     }()
-    up.DefaultCluster.m.Unlock()
+    up.DefaultCluster.Unlock()
     if outproxy == nil {
 	return
     }
@@ -378,13 +377,13 @@ func (up *Upstream)Handler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-func (up *Upstream)CertCheckCluster(domain string, cluster *Cluster) {
+func (up *Upstream)CertCheckCluster(domain string, cluster *cluster.Cluster) {
     // do background
     go func() {
 	log.Println("Start CertCheck " + domain + " cluster:", cluster)
 
-	c := &Connection{ domain: domain, proc: certcheckThisConn }
-	err := cluster.handleConnection(up.MiddleAddr, c)
+	c := connection.New(domain, nil, nil, certcheckThisConn)
+	err := cluster.HandleConnection(up.MiddleAddr, c)
 	if err != nil {
 	    cluster.CertOK = nil
 	    log.Println("Fail CertCheck " + domain + " cluster:", cluster)
@@ -414,9 +413,9 @@ func (up *Upstream)HouseKeeper() {
     for {
 	// TODO: NEED lock for temp cluster
 	plen := len(up.TempClusters)
-	tcls := [](*Cluster){}
+	tcls := [](*cluster.Cluster){}
 	for _, c := range(up.TempClusters) {
-	    if c.expire.After(time.Now()) {
+	    if c.Expire.After(time.Now()) {
 		tcls = append(tcls, c)
 	    }
 	}
@@ -438,8 +437,8 @@ func NewUpstream(path string) (*Upstream, error) {
     up := &Upstream{}
     up.DirectHosts = [](*webhost.WebHost){}
     up.BlockHosts = [](*webhost.BlockHost){}
-    up.Clusters = [](*Cluster){}
-    up.TempClusters = [](*Cluster){}
+    up.Clusters = [](*cluster.Cluster){}
+    up.TempClusters = [](*cluster.Cluster){}
 
     f, err := os.Open(path)
     if err != nil {
@@ -455,8 +454,8 @@ func NewUpstream(path string) (*Upstream, error) {
     lines := strings.Split(string(config), "\n")
     key := ""
     proxies := [](*outproxy.OutProxy){}
-    wilds := [](*Cluster){}
-    nowilds := [](*Cluster){}
+    wilds := [](*cluster.Cluster){}
+    nowilds := [](*cluster.Cluster){}
     now := time.Now()
     for _, line := range(lines) {
 	if line == "" || line[0] == '#' {
@@ -476,7 +475,7 @@ func NewUpstream(path string) (*Upstream, error) {
 	case "[direct]":
 	    up.DirectHosts = append(up.DirectHosts, webhost.NewWebHost(line))
 	case "[cluster]":
-	    cluster := &Cluster{}
+	    cluster := cluster.New()
 	    l := strings.Split(line, "=")
 	    cluster.CertHost = l[0]
 	    cluster.Host = *webhost.NewWebHost(l[1])
@@ -495,17 +494,15 @@ func NewUpstream(path string) (*Upstream, error) {
 	for _, proxy := range(proxies) {
 	    cluster.OutProxies.PushBack(proxy)
 	}
-	cluster.m = new(sync.Mutex)
 	cluster.CertOK = nil
 	log.Println("cluster:", cluster)
     }
-    up.DefaultCluster = &Cluster{}
+    up.DefaultCluster = cluster.New()
     up.DefaultCluster.CertHost = "DEFAULT"
     up.DefaultCluster.OutProxies = list.New()
     for _, proxy := range(proxies) {
 	up.DefaultCluster.OutProxies.PushBack(proxy)
     }
-    up.DefaultCluster.m = new(sync.Mutex)
     log.Println("default cluster:", up.DefaultCluster)
     // fast certcheck
     up.CertCheckInterval = 10 * time.Minute
