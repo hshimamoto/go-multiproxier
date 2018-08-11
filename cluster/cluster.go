@@ -42,7 +42,7 @@ func (cl *Cluster)String() string {
 func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, done chan bool) (error, bool) {
     outer := c.GetOutProxy()
     p := outer.Addr
-    log.Println("try " + p + " for " + c.Domain)
+    log.Println("try " + p + " for " + c.Domain())
 
     var conn net.Conn = nil
     var err error
@@ -134,7 +134,7 @@ func (cl *Cluster)HandleConnection(proxy string, c *connection.Connection) error
 	outer.Success++
 	return nil
     }
-    log.Println("ERR No proxy found for " + c.Domain)
+    log.Println("ERR No proxy found for " + c.Domain())
     return errors.New("No good proxy")
 }
 

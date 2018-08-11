@@ -38,7 +38,7 @@ type Upstream struct {
 
 func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
     outer := c.GetOutProxy()
-    msg := "CONNECT " + c.Domain + ":443 HTTP/1.0\r\n\r\n"
+    msg := "CONNECT " + c.Domain() + ":443 HTTP/1.0\r\n\r\n"
     conn.Write([]byte(msg))
     buf, err := outer.CheckConnect(conn, "certcheckThisConn")
     if err != nil {
@@ -49,19 +49,19 @@ func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) 
 	return fmt.Errorf("Server returns error: %v", err), true
     }
 
-    log.Println("start certcheck communication for " + c.Domain + " with " + outer.Addr)
+    log.Println("start certcheck communication for " + c.Domain() + " with " + outer.Addr)
 
-    client := tls.Client(conn, &tls.Config{ ServerName: c.Domain })
+    client := tls.Client(conn, &tls.Config{ ServerName: c.Domain() })
     defer client.Close()
 
     err = client.Handshake()
     if err != nil {
 	return err, false // no penalty
     }
-    log.Println("cert for " + c.Domain + " good")
+    log.Println("cert for " + c.Domain() + " good")
 
     getreq := "GET / HTTP/1.1\r\n"
-    getreq += "Host: " + c.Domain + "\r\n"
+    getreq += "Host: " + c.Domain() + "\r\n"
     getreq += "User-Agent: curl/7.58.0\r\n"
     getreq += "Accept: */*\r\n"
     getreq += "\r\n"
@@ -88,7 +88,7 @@ func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) 
     // send done in background
     go func() {
 	defer conn.Close()
-	log.Println("done certcheck for " + c.Domain + " ok")
+	log.Println("done certcheck for " + c.Domain() + " ok")
 	done <- true
     }()
 
@@ -108,7 +108,7 @@ func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error
 	return fmt.Errorf("Server returns error: %v", err), false
     }
 
-    log.Println("start communication for " + c.Domain + " with " + outer.Addr)
+    log.Println("start communication for " + c.Domain() + " with " + outer.Addr)
 
     go func() {
 	defer conn.Close()
@@ -120,7 +120,7 @@ func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error
 
 	connection.Transfer(lconn, conn)
 
-	log.Println("done communication for " + c.Domain)
+	log.Println("done communication for " + c.Domain())
 
 	done <- true
     }()

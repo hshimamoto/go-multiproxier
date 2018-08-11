@@ -75,7 +75,7 @@ func OpenProxy(proxy, outproxy string) (net.Conn, error, bool) {
 }
 
 type Connection struct {
-    Domain string
+    domain string
     r *http.Request
     w http.ResponseWriter
     Proc ConnectionProc
@@ -83,7 +83,7 @@ type Connection struct {
 }
 
 func New(domain string, r *http.Request, w http.ResponseWriter, proc ConnectionProc) *Connection {
-    c := &Connection{ Domain: domain, r: r, w: w, Proc: proc }
+    c := &Connection{ domain: domain, r: r, w: w, Proc: proc }
     return c
 }
 
@@ -92,7 +92,7 @@ func (c *Connection)String() string {
     if c.w == nil {
 	t = "CertCheck"
     }
-    return t + " for " + c.Domain
+    return t + " for " + c.domain
 }
 
 type ConnectionProc func(net.Conn, chan bool, *Connection) (error, bool)
@@ -105,6 +105,10 @@ func (c *Connection)Hijack() net.Conn {
     h, _ := c.w.(http.Hijacker)
     conn, _, _ := h.Hijack()
     return conn
+}
+
+func (c *Connection)Domain() string {
+    return c.domain
 }
 
 func (c *Connection)GetOutProxy() *outproxy.OutProxy {
