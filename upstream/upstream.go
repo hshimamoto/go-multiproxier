@@ -7,7 +7,6 @@
 package upstream
 
 import (
-    "container/list"
     "crypto/tls"
     "errors"
     "fmt"
@@ -182,7 +181,6 @@ func (up *Upstream)lookupCluster(host string) *cluster.Cluster {
     }
     // create temporary
     tcl := cluster.New()
-    tcl.OutProxies = list.New()
     up.DefaultCluster.Lock()
     for e := up.DefaultCluster.OutProxies.Front(); e != nil; e = e.Next() {
 	outproxy := e.Value.(*outproxy.OutProxy)
@@ -600,7 +598,6 @@ func NewUpstream(path string) (*Upstream, error) {
     }
     up.Clusters = append(nowilds, wilds...)
     for _, cluster := range(up.Clusters) {
-	cluster.OutProxies = list.New()
 	for _, proxy := range(proxies) {
 	    cluster.OutProxies.PushBack(proxy)
 	}
@@ -609,7 +606,6 @@ func NewUpstream(path string) (*Upstream, error) {
     }
     up.DefaultCluster = cluster.New()
     up.DefaultCluster.CertHost = "DEFAULT"
-    up.DefaultCluster.OutProxies = list.New()
     for _, proxy := range(proxies) {
 	up.DefaultCluster.OutProxies.PushBack(proxy)
     }

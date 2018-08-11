@@ -30,6 +30,7 @@ type Cluster struct {
 
 func New() *Cluster {
     c := &Cluster{}
+    c.OutProxies = list.New()
     c.m = new(sync.Mutex)
     return c
 }
