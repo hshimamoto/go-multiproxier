@@ -139,12 +139,12 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
     return errors.New("No good proxy")
 }
 
-func (c *Cluster)Lock() {
-    c.m.Lock()
+func (cl *Cluster)Lock() {
+    cl.m.Lock()
 }
 
-func (c *Cluster)Unlock() {
-    c.m.Unlock()
+func (cl *Cluster)Unlock() {
+    cl.m.Unlock()
 }
 
 func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
@@ -155,23 +155,23 @@ func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error
     return c.Run(conn, done)
 }
 
-func (c *Cluster)CertCheck(proxy string) {
-    log.Printf("Start CertCheck %s cluster: %v\n", c.CertHost, c)
-    conn := connection.New(c.CertHost, nil, nil, certcheckThisConn)
-    err := c.handleConnection(proxy, conn)
+func (cl *Cluster)CertCheck(proxy string) {
+    log.Printf("Start CertCheck %s cluster: %v\n", cl.CertHost, cl)
+    conn := connection.New(cl.CertHost, nil, nil, certcheckThisConn)
+    err := cl.handleConnection(proxy, conn)
     if err != nil {
-	c.CertOK = nil
-	log.Printf("Fail CertCheck %s cluster: %v\n", c.CertHost, c)
+	cl.CertOK = nil
+	log.Printf("Fail CertCheck %s cluster: %v\n", cl.CertHost, cl)
 	return
     }
     t := time.Now()
-    c.CertOK = &t
-    log.Printf("Done CertCheck %s cluster: %v\n", c.CertHost, c)
+    cl.CertOK = &t
+    log.Printf("Done CertCheck %s cluster: %v\n", cl.CertHost, cl)
 }
 
-func (c *Cluster)Run(proxy, host string, w http.ResponseWriter,r *http.Request) {
+func (cl *Cluster)Run(proxy, host string, w http.ResponseWriter,r *http.Request) {
     conn := connection.New(host, r, w, tryThisConn)
-    err := c.handleConnection(proxy, conn)
+    err := cl.handleConnection(proxy, conn)
     if err != nil {
 	// TODO: do something?
 	w.WriteHeader(http.StatusForbidden)
