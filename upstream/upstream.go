@@ -203,7 +203,7 @@ func (up *Upstream)handleConnect(w http.ResponseWriter,r *http.Request) {
     }
     if port != "443" || up.checkDirect(host) {
 	log.Println("direct connection")
-	rconn, err := net.Dial("tcp", up.MiddleAddr)
+	rconn, err := net.DialTimeout("tcp", up.MiddleAddr, 10 * time.Second)
 	if err != nil {
 	    log.Println("net.Dial:", err)
 	    return
