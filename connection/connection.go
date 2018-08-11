@@ -7,7 +7,7 @@
 package connection
 
 import (
-    "errors"
+    "fmt"
     "io"
     "log"
     "net"
@@ -42,7 +42,7 @@ func CheckConnectOK(resp string) error {
     lines := strings.Split(resp, "\r\n")
     codes := strings.Split(lines[0], " ")
     if codes[1] != "200" {
-	return errors.New(lines[0])
+	return fmt.Errorf(lines[0])
     }
     return nil
 }
@@ -64,12 +64,12 @@ func OpenProxy(proxy, outproxy string) (net.Conn, error, bool) {
 	} else {
 	    log.Println("proxy closed")
 	}
-	return nil, errors.New("READ NG"), true
+	return nil, fmt.Errorf("READ NG"), true
     }
     err = CheckConnectOK(string(buf[:n]))
     if err != nil {
 	conn.Close()
-	return nil, errors.New("CONNECT NG " + err.Error()), true
+	return nil, fmt.Errorf("CONNECT NG: %v", err), true
     }
     return conn, nil, false
 }

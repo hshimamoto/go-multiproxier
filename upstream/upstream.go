@@ -8,7 +8,7 @@ package upstream
 
 import (
     "crypto/tls"
-    "errors"
+    "fmt"
     "io"
     "io/ioutil"
     "log"
@@ -46,7 +46,7 @@ func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) 
     }
     err = connection.CheckConnectOK(string(buf))
     if err != nil {
-	return errors.New("Server returns error:" + err.Error()), true
+	return fmt.Errorf("Server returns error: %v", err), true
     }
 
     log.Println("start certcheck communication for " + c.Domain + " with " + outer.Addr)
@@ -73,16 +73,16 @@ func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) 
     if n > 0 {
 	resp := string(buf[:n])
 	if strings.Index(resp, `<title>Attention Required! | Cloudflare</title>`) > 0 {
-	    return errors.New("Cloudflare detect"), false
+	    return fmt.Errorf("Cloudflare detect"), false
 	}
 	if strings.Index(resp, `<script src="https://www.google.com/recaptcha/api.js" async defer></script>`) > 0 {
-	    return errors.New("Google detect"), false
+	    return fmt.Errorf("Google detect"), false
 	}
     } else {
 	if err != nil {
-	    return errors.New("waiting GET / response " + err.Error()), false
+	    return fmt.Errorf("waiting GET / response %v", err), false
 	}
-	return errors.New("remote TLS connection closed"), false
+	return fmt.Errorf("remote TLS connection closed"), false
     }
 
     // send done in background
@@ -105,7 +105,7 @@ func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error
     }
     err = connection.CheckConnectOK(string(buf))
     if err != nil {
-	return errors.New("Server returns error:" + err.Error()), false
+	return fmt.Errorf("Server returns error: %v", err), false
     }
 
     log.Println("start communication for " + c.Domain + " with " + outer.Addr)
