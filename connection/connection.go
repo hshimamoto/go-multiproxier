@@ -47,7 +47,7 @@ func CheckConnectOK(resp string) error {
     return nil
 }
 
-func OpenProxy(proxy, outproxy string) (*net.TCPConn, error, bool) {
+func OpenProxy(proxy, outproxy string) (net.Conn, error, bool) {
     conn, err := net.DialTimeout("tcp", proxy, timeout)
     if err != nil {
 	return nil, err, false
@@ -71,7 +71,7 @@ func OpenProxy(proxy, outproxy string) (*net.TCPConn, error, bool) {
 	conn.Close()
 	return nil, errors.New("CONNECT NG " + err.Error()), true
     }
-    return conn.(*net.TCPConn), nil, false
+    return conn, nil, false
 }
 
 type Connection struct {
@@ -95,7 +95,7 @@ func (c *Connection)String() string {
     return t + " for " + c.Domain
 }
 
-type ConnectionProc func(*net.TCPConn, chan bool, *Connection) (error, bool)
+type ConnectionProc func(net.Conn, chan bool, *Connection) (error, bool)
 
 func (c *Connection)ReqWriteProxy(conn net.Conn) {
     c.r.WriteProxy(conn)

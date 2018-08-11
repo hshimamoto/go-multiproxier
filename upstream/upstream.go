@@ -38,7 +38,7 @@ type Upstream struct {
     CertCheckInterval time.Duration
 }
 
-func certcheckThisConn(conn *net.TCPConn, done chan bool, c *connection.Connection) (error, bool) {
+func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
     outer := c.Outproxy
     msg := "CONNECT " + c.Domain + ":443 HTTP/1.0\r\n\r\n"
     conn.Write([]byte(msg))
@@ -97,7 +97,7 @@ func certcheckThisConn(conn *net.TCPConn, done chan bool, c *connection.Connecti
     return nil, false
 }
 
-func tryThisConn(conn *net.TCPConn, done chan bool, c *connection.Connection) (error, bool) {
+func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
     outer := c.Outproxy
     // send original CONNECT
     c.ReqWriteProxy(conn)

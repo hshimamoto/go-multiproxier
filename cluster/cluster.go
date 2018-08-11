@@ -43,7 +43,7 @@ func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, do
     p := outer.Addr
     log.Println("try " + p + " for " + c.Domain)
 
-    var conn *net.TCPConn = nil
+    var conn net.Conn = nil
     var err error
     var penalty bool
     if proxy != "" {

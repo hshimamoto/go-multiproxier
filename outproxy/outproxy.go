@@ -34,7 +34,7 @@ func (outproxy *OutProxy)Line() string {
     return fmt.Sprintf("%s %s %d %d to:%v\n", st, name, succ, fail, to)
 }
 
-func (outproxy *OutProxy)CheckConnect(conn *net.TCPConn, label string) ([]byte, error) {
+func (outproxy *OutProxy)CheckConnect(conn net.Conn, label string) ([]byte, error) {
     buf := make([]byte, 256)
     conn.SetReadDeadline(time.Now().Add(outproxy.Timeout))
     n, err := conn.Read(buf)
