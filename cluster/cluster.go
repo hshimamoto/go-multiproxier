@@ -86,7 +86,7 @@ func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, do
     return nil, false
 }
 
-func (cl *Cluster)HandleConnection(proxy string, c *connection.Connection) error {
+func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error {
     cl.m.Lock()
     e := cl.OutProxies.Front()
     cl.m.Unlock()
@@ -245,7 +245,7 @@ func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error
 func (c *Cluster)CertCheck(proxy string) {
     log.Printf("Start CertCheck %s cluster: %v\n", c.CertHost, c)
     conn := connection.New(c.CertHost, nil, nil, certcheckThisConn)
-    err := c.HandleConnection(proxy, conn)
+    err := c.handleConnection(proxy, conn)
     if err != nil {
 	c.CertOK = nil
 	log.Printf("Fail CertCheck %s cluster: %v\n", c.CertHost, c)
@@ -258,7 +258,7 @@ func (c *Cluster)CertCheck(proxy string) {
 
 func (c *Cluster)Run(proxy, host string, w http.ResponseWriter,r *http.Request) {
     conn := connection.New(host, r, w, tryThisConn)
-    err := c.HandleConnection(proxy, conn)
+    err := c.handleConnection(proxy, conn)
     if err != nil {
 	// TODO: do something?
 	w.WriteHeader(http.StatusForbidden)
