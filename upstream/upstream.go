@@ -37,7 +37,7 @@ type Upstream struct {
 }
 
 func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
-    outer := c.Outproxy
+    outer := c.GetOutProxy()
     msg := "CONNECT " + c.Domain + ":443 HTTP/1.0\r\n\r\n"
     conn.Write([]byte(msg))
     buf, err := outer.CheckConnect(conn, "certcheckThisConn")
@@ -96,7 +96,7 @@ func certcheckThisConn(conn net.Conn, done chan bool, c *connection.Connection) 
 }
 
 func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error, bool) {
-    outer := c.Outproxy
+    outer := c.GetOutProxy()
     // send original CONNECT
     c.ReqWriteProxy(conn)
     buf, err := outer.CheckConnect(conn, "tryThisConn")

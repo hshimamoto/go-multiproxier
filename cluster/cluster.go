@@ -40,7 +40,7 @@ func (cl *Cluster)String() string {
 }
 
 func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, done chan bool) (error, bool) {
-    outer := c.Outproxy
+    outer := c.GetOutProxy()
     p := outer.Addr
     log.Println("try " + p + " for " + c.Domain)
 
@@ -110,7 +110,7 @@ func (cl *Cluster)HandleConnection(proxy string, c *connection.Connection) error
 	}
 	used = append(used, outer)
 	done := make(chan bool)
-	c.Outproxy = outer
+	c.SetOutProxy(outer)
 	err, critical := cl.handleConnectionTry(proxy, c, done)
 	if err != nil {
 	    if critical {

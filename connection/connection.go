@@ -79,7 +79,7 @@ type Connection struct {
     r *http.Request
     w http.ResponseWriter
     Proc ConnectionProc
-    Outproxy *outproxy.OutProxy
+    outproxy *outproxy.OutProxy
 }
 
 func New(domain string, r *http.Request, w http.ResponseWriter, proc ConnectionProc) *Connection {
@@ -105,4 +105,12 @@ func (c *Connection)Hijack() net.Conn {
     h, _ := c.w.(http.Hijacker)
     conn, _, _ := h.Hijack()
     return conn
+}
+
+func (c *Connection)GetOutProxy() *outproxy.OutProxy {
+    return c.outproxy
+}
+
+func (c *Connection)SetOutProxy(o *outproxy.OutProxy) {
+    c.outproxy = o
 }
