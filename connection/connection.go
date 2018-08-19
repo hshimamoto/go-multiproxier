@@ -10,12 +10,12 @@ import (
     "crypto/tls"
     "fmt"
     "io"
-    "log"
     "net"
     "net/http"
     "strings"
     "time"
 
+    "github.com/hshimamoto/go-multiproxier/log"
     "github.com/hshimamoto/go-multiproxier/outproxy"
 )
 

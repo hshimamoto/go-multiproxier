@@ -9,10 +9,10 @@
 package main
 
 import (
-    "log"
     "os"
     "runtime"
 
+    "github.com/hshimamoto/go-multiproxier/log"
     "github.com/hshimamoto/go-multiproxier/upstream"
 )
 

@@ -9,7 +9,6 @@ package upstream
 import (
     "io"
     "io/ioutil"
-    "log"
     "net"
     "net/http"
     "os"
@@ -18,6 +17,7 @@ import (
 
     "github.com/hshimamoto/go-multiproxier/cluster"
     "github.com/hshimamoto/go-multiproxier/connection"
+    "github.com/hshimamoto/go-multiproxier/log"
     "github.com/hshimamoto/go-multiproxier/outproxy"
     "github.com/hshimamoto/go-multiproxier/webhost"
 )

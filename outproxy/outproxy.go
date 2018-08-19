@@ -8,9 +8,10 @@ package outproxy
 
 import (
     "fmt"
-    "log"
     "net"
     "time"
+
+    "github.com/hshimamoto/go-multiproxier/log"
 )
 
 type OutProxy struct {

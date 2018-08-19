@@ -9,13 +9,13 @@ package cluster
 import (
     "container/list"
     "errors"
-    "log"
     "net"
     "net/http"
     "sync"
     "time"
 
     "github.com/hshimamoto/go-multiproxier/connection"
+    "github.com/hshimamoto/go-multiproxier/log"
     "github.com/hshimamoto/go-multiproxier/outproxy"
     "github.com/hshimamoto/go-multiproxier/webhost"
 )
