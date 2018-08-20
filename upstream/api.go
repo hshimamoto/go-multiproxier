@@ -8,12 +8,12 @@ package upstream
 
 import (
     "fmt"
-    "log"
     "net/http"
     "strings"
     "time"
 
     "github.com/hshimamoto/go-multiproxier/cluster"
+    "github.com/hshimamoto/go-multiproxier/log"
     "github.com/hshimamoto/go-multiproxier/outproxy"
 )
 
