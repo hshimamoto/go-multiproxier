@@ -7,17 +7,25 @@
 package log
 
 import (
+    "io"
     "log"
+    "os"
 )
 
+var logger *log.Logger = log.New(os.Stderr, "", log.LstdFlags)
+
 func Fatal(v ...interface{}) {
-    log.Fatal(v...)
+    logger.Fatal(v...)
 }
 
 func Println(v ...interface{}) {
-    log.Println(v...)
+    logger.Println(v...)
 }
 
 func Printf(fmt string, v ...interface{}) {
-    log.Printf(fmt, v...)
+    logger.Printf(fmt, v...)
+}
+
+func Init(w io.Writer) {
+    logger = log.New(w, "", log.LstdFlags)
 }
