@@ -30,22 +30,6 @@ type Upstream struct {
     CertCheckInterval time.Duration
 }
 
-func makeClusterBlob(c *cluster.Cluster) string {
-    out := c.CertHost + "=" + c.Host.String() + "\n"
-    if c.CertOK != nil {
-	out += "check time:" + c.CertOK.Format(time.ANSIC) + "\n"
-    } else {
-	out += "bad cluster\n"
-    }
-    c.Lock()
-    for e := c.OutProxies.Front(); e != nil; e = e.Next() {
-	outer := e.Value.(*outproxy.OutProxy)
-	out += " " + outer.Line()
-    }
-    c.Unlock()
-    return out
-}
-
 func NewUpstream(path string) (*Upstream, error) {
     up := &Upstream{}
     up.DirectHosts = [](*webhost.WebHost){}

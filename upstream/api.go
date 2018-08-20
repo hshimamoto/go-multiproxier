@@ -17,6 +17,22 @@ import (
     "github.com/hshimamoto/go-multiproxier/outproxy"
 )
 
+func makeClusterBlob(c *cluster.Cluster) string {
+    out := c.CertHost + "=" + c.Host.String() + "\n"
+    if c.CertOK != nil {
+	out += "check time:" + c.CertOK.Format(time.ANSIC) + "\n"
+    } else {
+	out += "bad cluster\n"
+    }
+    c.Lock()
+    for e := c.OutProxies.Front(); e != nil; e = e.Next() {
+	outer := e.Value.(*outproxy.OutProxy)
+	out += " " + outer.Line()
+    }
+    c.Unlock()
+    return out
+}
+
 func (up *Upstream)dumpOutProxies(w http.ResponseWriter, r *http.Request) {
     // ignore request
     dc := up.DefaultCluster
