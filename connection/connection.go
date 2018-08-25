@@ -120,6 +120,41 @@ func (c *Connection)SetOutProxy(o *outproxy.OutProxy) {
     c.outproxy = o
 }
 
+func (c *Connection)CheckGoogle(conn net.Conn, client *tls.Conn, done chan bool) (error, bool) {
+    outer := c.GetOutProxy()
+
+    getreq := "GET /search?source=hp&q=proxy HTTP/1.1\r\n"
+    getreq += "Host: www.google.com\r\n"
+    getreq += "User-Agent: Mozilla/5.0 Gecko/20100101 Firefox/61.0\r\n"
+    getreq += "Accept: */*\r\n"
+    getreq += "\r\n"
+    client.Write([]byte(getreq))
+
+    buf := make([]byte, 4096)
+    client.SetReadDeadline(time.Now().Add(outer.Timeout))
+    n, err := client.Read(buf)
+    if n > 0 {
+	resp := string(buf[:n])
+	if strings.Index(resp, `https://www.google.com/sorry/index?continue`) > 0 {
+	    return fmt.Errorf("Google detect"), false
+	}
+    } else {
+	if err != nil {
+	    return fmt.Errorf("waiting GET / response %v", err), false
+	}
+	return fmt.Errorf("remote TLS connection closed"), false
+    }
+
+    // send done in background
+    go func() {
+	defer conn.Close()
+	log.Println("done certcheck for " + c.Domain() + " ok")
+	done <- true
+    }()
+
+    return nil, false
+}
+
 func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
     outer := c.GetOutProxy()
     msg := "CONNECT " + c.Domain() + ":443 HTTP/1.0\r\n\r\n"
@@ -144,6 +179,10 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
     }
     log.Println("cert for " + c.Domain() + " good")
 
+    if c.Domain() == "www.google.com" {
+	return c.CheckGoogle(conn, client, done)
+    }
+
     getreq := "GET / HTTP/1.1\r\n"
     getreq += "Host: " + c.Domain() + "\r\n"
     getreq += "User-Agent: curl/7.58.0\r\n"
@@ -158,9 +197,6 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
 	resp := string(buf[:n])
 	if strings.Index(resp, `<title>Attention Required! | Cloudflare</title>`) > 0 {
 	    return fmt.Errorf("Cloudflare detect"), false
-	}
-	if strings.Index(resp, `<script src="https://www.google.com/recaptcha/api.js" async defer></script>`) > 0 {
-	    return fmt.Errorf("Google detect"), false
 	}
     } else {
 	if err != nil {
