@@ -89,8 +89,14 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
     cl.m.Unlock()
 
     used := [](*outproxy.OutProxy){}
+    sentinel := 0
 
     for e != nil {
+	sentinel++
+	if sentinel > 128 {
+	    log.Printf("something wrong for %s\n", c.Domain())
+	    return errors.New("bad in handleConnection")
+	}
 	outer := e.Value.(*outproxy.OutProxy)
 	if outer.Bad.After(time.Now()) {
 	    cl.m.Lock()
