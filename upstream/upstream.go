@@ -66,7 +66,12 @@ func NewUpstream(path string) (*Upstream, error) {
 	case "[server]":
 	    up.Listen = line
 	case "[upstream]":
-	    proxies = append(proxies, &outproxy.OutProxy { Addr: line, Bad: now, Timeout: 5 * time.Second, NumRunning: 0 })
+	    proxies = append(proxies, &outproxy.OutProxy{
+		Addr: line,
+		Bad: now,
+		Timeout: 15 * time.Second,
+		NumRunning: 0,
+	    })
 	case "[proxy]":
 	    up.MiddleAddr = line
 	case "[direct]":
