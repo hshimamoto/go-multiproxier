@@ -113,6 +113,9 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
 	    return true
 	}()
 	if !unused {
+	    cl.m.Lock()
+	    e = e.Next()
+	    cl.m.Unlock()
 	    continue
 	}
 	used = append(used, outer)
