@@ -148,6 +148,45 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
     return errors.New("No good proxy")
 }
 
+func (cl *Cluster)handleConnectionCert(proxy string, c *connection.Connection) {
+    success := [](*list.Element){}
+    fail := [](*list.Element){}
+
+    // create list
+    cl.m.Lock()
+    e := cl.OutProxies.Front()
+    for e != nil {
+	success = append(success, e)
+	e = e.Next()
+    }
+    cl.Unlock()
+
+    for _, e := range success {
+	elm := e
+	outer := elm.Value.(*outproxy.OutProxy)
+	if outer.Bad.After(time.Now()) {
+	    continue
+	}
+	done := make(chan bool)
+	c.SetOutProxy(outer)
+	err, _ := cl.handleConnectionTry(proxy, c, done)
+	if err != nil {
+	    fail = append(fail, elm)
+	    outer.Fail++
+	    return
+	}
+	<-done
+	outer.NumRunning--
+	outer.Success++
+    }
+
+    cl.m.Lock()
+    for _, e := range fail {
+	cl.OutProxies.MoveToBack(e)
+    }
+    cl.m.Unlock()
+}
+
 func (cl *Cluster)Lock() {
     cl.m.Lock()
 }
@@ -167,6 +206,7 @@ func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error
 func (cl *Cluster)CertCheck(proxy string) {
     log.Printf("Start CertCheck %s cluster: %v\n", cl.CertHost, cl)
     conn := connection.New(cl.CertHost, nil, nil, certcheckThisConn)
+    cl.handleConnectionCert(proxy, conn)
     err := cl.handleConnection(proxy, conn)
     if err != nil {
 	cl.CertOK = nil
