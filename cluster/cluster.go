@@ -161,9 +161,11 @@ func (cl *Cluster)handleConnectionCert(proxy string, c *connection.Connection) {
     }
     cl.Unlock()
 
-    for _, e := range success {
+    log.Printf("check %d proxies\n", len(success))
+    for idx, e := range success {
 	elm := e
 	outer := elm.Value.(*outproxy.OutProxy)
+	log.Printf("check %s <%d> for %s\n", outer.Addr, idx, c.Domain())
 	if outer.Bad.After(time.Now()) {
 	    continue
 	}
@@ -173,7 +175,7 @@ func (cl *Cluster)handleConnectionCert(proxy string, c *connection.Connection) {
 	if err != nil {
 	    fail = append(fail, elm)
 	    outer.Fail++
-	    return
+	    continue
 	}
 	<-done
 	outer.NumRunning--
@@ -207,6 +209,7 @@ func (cl *Cluster)CertCheck(proxy string) {
     log.Printf("Start CertCheck %s cluster: %v\n", cl.CertHost, cl)
     conn := connection.New(cl.CertHost, nil, nil, certcheckThisConn)
     cl.handleConnectionCert(proxy, conn)
+    log.Printf("All proxies were checked %s cluster: %v\n", cl.CertHost, cl)
     err := cl.handleConnection(proxy, conn)
     if err != nil {
 	cl.CertOK = nil
