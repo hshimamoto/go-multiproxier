@@ -136,7 +136,7 @@ func (c *Connection)CheckGoogle(conn net.Conn, client *tls.Conn, done chan bool)
     if n > 0 {
 	resp := string(buf[:n])
 	if strings.Index(resp, `https://www.google.com/sorry/index?continue`) > 0 {
-	    return fmt.Errorf("Google detect"), false
+	    return fmt.Errorf("Google detect with %s", outer.Addr), false
 	}
     } else {
 	if err != nil {
@@ -148,7 +148,7 @@ func (c *Connection)CheckGoogle(conn net.Conn, client *tls.Conn, done chan bool)
     // send done in background
     go func() {
 	defer conn.Close()
-	log.Println("done certcheck for " + c.Domain() + " ok")
+	log.Printf("certcheck ok for %s with %s\n", c.Domain(), outer.Addr)
 	done <- true
     }()
 
@@ -168,7 +168,7 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
 	return fmt.Errorf("Server returns error: %v", err), true
     }
 
-    log.Println("start certcheck communication for " + c.Domain() + " with " + outer.Addr)
+    log.Printf("start certcheck communication for %s with %s\n", c.Domain(), outer.Addr)
 
     client := tls.Client(conn, &tls.Config{ ServerName: c.Domain() })
     defer client.Close()
@@ -177,7 +177,7 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
     if err != nil {
 	return err, false // no penalty
     }
-    log.Println("cert for " + c.Domain() + " good")
+    log.Printf("TLS cert ok for %s with %s\n", c.Domain(), outer.Addr)
 
     if c.Domain() == "www.google.com" {
 	return c.CheckGoogle(conn, client, done)
@@ -196,7 +196,7 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
     if n > 0 {
 	resp := string(buf[:n])
 	if strings.Index(resp, `<title>Attention Required! | Cloudflare</title>`) > 0 {
-	    return fmt.Errorf("Cloudflare detect"), false
+	    return fmt.Errorf("Cloudflare detect with %s", outer.Addr), false
 	}
     } else {
 	if err != nil {
@@ -208,7 +208,7 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
     // send done in background
     go func() {
 	defer conn.Close()
-	log.Println("done certcheck for " + c.Domain() + " ok")
+	log.Printf("certcheck ok for %s with %s\n", c.Domain(), outer.Addr)
 	done <- true
     }()
 
