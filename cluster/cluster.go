@@ -28,12 +28,14 @@ type Cluster struct {
     CertOK *time.Time
     m *sync.Mutex
     Expire time.Time
+    log *log.LocalLog
 }
 
 func New() *Cluster {
     c := &Cluster{}
     c.OutProxies = list.New()
     c.m = new(sync.Mutex)
+    c.log = log.NewLocalLog(100)
     return c
 }
 
@@ -41,10 +43,14 @@ func (cl *Cluster)String() string {
     return cl.CertHost
 }
 
+func (cl *Cluster)Logs() []string {
+    return cl.log.Get()
+}
+
 func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, done chan bool) (error, bool) {
     outer := c.GetOutProxy()
     p := outer.Addr
-    log.Println("try " + p + " for " + c.Domain())
+    cl.log.Printf("try %s for %s\n", p, c.Domain())
 
     var conn net.Conn = nil
     var err error
@@ -70,7 +76,7 @@ func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, do
     }
     err, penalty = c.Proc(conn, done, c)
     if err != nil {
-	log.Println("Connection:", c, err)
+	cl.log.Printf("Connection: %v %v\n", c, err)
 	conn.Close()
 	if penalty {
 	    outer.Bad = time.Now().Add(10 * time.Minute)
@@ -80,7 +86,6 @@ func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, do
     // everything fine
     outer.Bad = time.Now()
     atomic.AddInt32(&outer.NumRunning, 1)
-    log.Println(p, outer.NumRunning, "running")
     return nil, false
 }
 
@@ -95,7 +100,7 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
     for e != nil {
 	sentinel++
 	if sentinel > 128 {
-	    log.Printf("something wrong for %s\n", c.Domain())
+	    cl.log.Printf("something wrong for %s\n", c.Domain())
 	    return errors.New("bad in handleConnection")
 	}
 	outer := e.Value.(*outproxy.OutProxy)
@@ -125,7 +130,7 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
 	err, critical := cl.handleConnectionTry(proxy, c, done)
 	if err != nil {
 	    if critical {
-		log.Println("CRITICAL ", err)
+		cl.log.Printf("CRITICAL %v\n", err)
 		break
 	    }
 	    cl.m.Lock()
@@ -145,7 +150,7 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
 	atomic.AddUint32(&outer.Success, 1)
 	return nil
     }
-    log.Println("ERR No proxy found for " + c.Domain())
+    cl.log.Printf("ERR No proxy found for %s\n", c.Domain())
     return errors.New("No good proxy")
 }
 
@@ -164,11 +169,11 @@ func (cl *Cluster)handleConnectionCert(proxy string, c *connection.Connection) {
 
     var wg sync.WaitGroup
 
-    log.Printf("check %d proxies\n", len(success))
+    cl.log.Printf("check %d proxies\n", len(success))
     for idx, e := range success {
 	elm := e
 	outer := elm.Value.(*outproxy.OutProxy)
-	log.Printf("check %s <%d> for %s\n", outer.Addr, idx, c.Domain())
+	cl.log.Printf("check %s <%d> for %s\n", outer.Addr, idx, c.Domain())
 	wg.Add(1)
 	go func() {
 	    defer wg.Done()
@@ -216,19 +221,19 @@ func tryThisConn(conn net.Conn, done chan bool, c *connection.Connection) (error
 }
 
 func (cl *Cluster)CertCheck(proxy string) {
-    log.Printf("Start CertCheck %s cluster: %v\n", cl.CertHost, cl)
+    cl.log.Printf("Start CertCheck %s cluster: %v\n", cl.CertHost, cl)
     conn := connection.New(cl.CertHost, nil, nil, certcheckThisConn)
     cl.handleConnectionCert(proxy, conn)
-    log.Printf("All proxies were checked %s cluster: %v\n", cl.CertHost, cl)
+    cl.log.Printf("All proxies were checked %s cluster: %v\n", cl.CertHost, cl)
     err := cl.handleConnection(proxy, conn)
     if err != nil {
 	cl.CertOK = nil
-	log.Printf("Fail CertCheck %s cluster: %v\n", cl.CertHost, cl)
+	cl.log.Printf("Fail CertCheck %s cluster: %v\n", cl.CertHost, cl)
 	return
     }
     t := time.Now()
     cl.CertOK = &t
-    log.Printf("Done CertCheck %s cluster: %v\n", cl.CertHost, cl)
+    cl.log.Printf("Done CertCheck %s cluster: %v\n", cl.CertHost, cl)
 }
 
 func (cl *Cluster)Run(proxy, host string, w http.ResponseWriter,r *http.Request) {

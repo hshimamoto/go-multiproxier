@@ -112,6 +112,8 @@ func (up *Upstream)apiCluster(api []string, w http.ResponseWriter, r *http.Reque
     switch cmd {
     case "show":
 	w.Write([]byte(makeClusterBlob(cluster)))
+    case "logs":
+	w.Write([]byte(strings.Join(cluster.Logs(), "\n") + "\n"))
     case "bad":
 	cluster.Lock()
 	e := cluster.OutProxies.Front()
