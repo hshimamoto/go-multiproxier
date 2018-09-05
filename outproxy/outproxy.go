@@ -31,8 +31,9 @@ func (outproxy *OutProxy)Line() string {
     name := outproxy.Addr
     succ := outproxy.Success
     fail := outproxy.Fail
+    run := outproxy.NumRunning
     to := outproxy.Timeout
-    return fmt.Sprintf("%s %s %d %d to:%v\n", st, name, succ, fail, to)
+    return fmt.Sprintf("%s %s %d %d r:%d to:%v\n", st, name, succ, fail, run, to)
 }
 
 func (outproxy *OutProxy)CheckConnect(conn net.Conn, label string) ([]byte, error) {
