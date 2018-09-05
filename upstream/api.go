@@ -110,6 +110,8 @@ func (up *Upstream)apiCluster(api []string, w http.ResponseWriter, r *http.Reque
 	return
     }
     switch cmd {
+    case "show":
+	w.Write([]byte(makeClusterBlob(cluster)))
     case "bad":
 	cluster.Lock()
 	e := cluster.OutProxies.Front()
@@ -159,8 +161,8 @@ func (up *Upstream)apiTemp(api []string, w http.ResponseWriter, r *http.Request)
     cmd := api[1]
     // lookup cluster
     cluster := func() *cluster.Cluster {
-	for _, c := range(up.Clusters) {
-	    if cname == c.CertHost {
+	for _, c := range(up.TempClusters) {
+	    if "Temporary for " + cname == c.CertHost {
 		return c
 	    }
 	}
@@ -170,6 +172,8 @@ func (up *Upstream)apiTemp(api []string, w http.ResponseWriter, r *http.Request)
 	return
     }
     switch cmd {
+    case "show":
+	w.Write([]byte(makeClusterBlob(cluster)))
     case "bad":
 	cluster.Lock()
 	e := cluster.OutProxies.Front()
