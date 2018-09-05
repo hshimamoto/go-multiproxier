@@ -18,9 +18,9 @@ type OutProxy struct {
     Addr string
     Bad time.Time
     Timeout time.Duration
-    NumRunning int
+    NumRunning int32
     // stats
-    Success, Fail int
+    Success, Fail uint32
 }
 
 func (outproxy *OutProxy)Line() string {

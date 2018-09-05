@@ -12,6 +12,7 @@ import (
     "net"
     "net/http"
     "sync"
+    "sync/atomic"
     "time"
 
     "github.com/hshimamoto/go-multiproxier/connection"
@@ -78,7 +79,7 @@ func (cl *Cluster)handleConnectionTry(proxy string, c *connection.Connection, do
     }
     // everything fine
     outer.Bad = time.Now()
-    outer.NumRunning++
+    atomic.AddInt32(&outer.NumRunning, 1)
     log.Println(p, outer.NumRunning, "running")
     return nil, false
 }
@@ -132,7 +133,7 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
 	    cl.OutProxies.MoveToBack(e)
 	    e = next
 	    cl.m.Unlock()
-	    outer.Fail++
+	    atomic.AddUint32(&outer.Fail, 1)
 	    continue
 	}
 	cl.m.Lock()
@@ -140,8 +141,8 @@ func (cl *Cluster)handleConnection(proxy string, c *connection.Connection) error
 	cl.m.Unlock()
 	// wait
 	<-done
-	outer.NumRunning--
-	outer.Success++
+	atomic.AddInt32(&outer.NumRunning, -1)
+	atomic.AddUint32(&outer.Success, 1)
 	return nil
     }
     log.Println("ERR No proxy found for " + c.Domain())
@@ -180,12 +181,12 @@ func (cl *Cluster)handleConnectionCert(proxy string, c *connection.Connection) {
 	    err, _ := cl.handleConnectionTry(proxy, c, done)
 	    if err != nil {
 		fail = append(fail, elm)
-		outer.Fail++
+		atomic.AddUint32(&outer.Fail, 1)
 		return
 	    }
 	    <-done
-	    outer.NumRunning--
-	    outer.Success++
+	    atomic.AddInt32(&outer.NumRunning, -1)
+	    atomic.AddUint32(&outer.Success, 1)
 	}()
     }
 
