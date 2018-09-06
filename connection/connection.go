@@ -81,10 +81,11 @@ type Connection struct {
     w http.ResponseWriter
     Proc ConnectionProc
     outproxy *outproxy.OutProxy
+    log *log.LocalLog
 }
 
-func New(domain string, r *http.Request, w http.ResponseWriter, proc ConnectionProc) *Connection {
-    c := &Connection{ domain: domain, r: r, w: w, Proc: proc }
+func New(domain string, r *http.Request, w http.ResponseWriter, proc ConnectionProc, log *log.LocalLog) *Connection {
+    c := &Connection{ domain: domain, r: r, w: w, Proc: proc, log: log }
     return c
 }
 
@@ -148,7 +149,7 @@ func (c *Connection)CheckGoogle(conn net.Conn, client *tls.Conn, done chan bool)
     // send done in background
     go func() {
 	defer conn.Close()
-	log.Printf("certcheck ok for %s with %s\n", c.Domain(), outer.Addr)
+	c.log.Printf("certcheck ok for %s with %s\n", c.Domain(), outer.Addr)
 	done <- true
     }()
 
@@ -168,7 +169,7 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
 	return fmt.Errorf("Server returns error: %v", err), true
     }
 
-    log.Printf("start certcheck communication for %s with %s\n", c.Domain(), outer.Addr)
+    c.log.Printf("start certcheck communication for %s with %s\n", c.Domain(), outer.Addr)
 
     client := tls.Client(conn, &tls.Config{ ServerName: c.Domain() })
     defer client.Close()
@@ -177,7 +178,7 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
     if err != nil {
 	return err, false // no penalty
     }
-    log.Printf("TLS cert ok for %s with %s\n", c.Domain(), outer.Addr)
+    c.log.Printf("TLS cert ok for %s with %s\n", c.Domain(), outer.Addr)
 
     if c.Domain() == "www.google.com" {
 	return c.CheckGoogle(conn, client, done)
@@ -208,7 +209,7 @@ func (c *Connection)CertCheck(conn net.Conn, done chan bool) (error, bool) {
     // send done in background
     go func() {
 	defer conn.Close()
-	log.Printf("certcheck ok for %s with %s\n", c.Domain(), outer.Addr)
+	c.log.Printf("certcheck ok for %s with %s\n", c.Domain(), outer.Addr)
 	done <- true
     }()
 
@@ -228,7 +229,7 @@ func (c *Connection)Run(conn net.Conn, done chan bool) (error, bool) {
 	return fmt.Errorf("Server returns error: %v", err), false
     }
 
-    log.Println("start communication for " + c.Domain() + " with " + outer.Addr)
+    c.log.Printf("start communication for %s with %s\n", c.Domain(), outer.Addr)
 
     go func() {
 	defer conn.Close()
@@ -240,7 +241,7 @@ func (c *Connection)Run(conn net.Conn, done chan bool) (error, bool) {
 
 	Transfer(lconn, conn)
 
-	log.Println("done communication for " + c.Domain())
+	c.log.Printf("done communication for %s\n", c.Domain())
 
 	done <- true
     }()

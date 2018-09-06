@@ -182,7 +182,7 @@ func (cl *Cluster)handleConnectionCert(proxy string) {
 		return
 	    }
 	    done := make(chan bool)
-	    c := connection.New(cl.CertHost, nil, nil, certcheckThisConn)
+	    c := connection.New(cl.CertHost, nil, nil, certcheckThisConn, cl.log)
 	    c.SetOutProxy(outer)
 	    err, _ := cl.handleConnectionTry(proxy, c, done)
 	    if err != nil {
@@ -225,7 +225,7 @@ func (cl *Cluster)CertCheck(proxy string) {
     cl.log.Printf("Start CertCheck %s cluster: %v\n", cl.CertHost, cl)
     cl.handleConnectionCert(proxy)
     cl.log.Printf("All proxies were checked %s cluster: %v\n", cl.CertHost, cl)
-    conn := connection.New(cl.CertHost, nil, nil, certcheckThisConn)
+    conn := connection.New(cl.CertHost, nil, nil, certcheckThisConn, cl.log)
     err := cl.handleConnection(proxy, conn)
     if err != nil {
 	cl.CertOK = nil
@@ -238,7 +238,7 @@ func (cl *Cluster)CertCheck(proxy string) {
 }
 
 func (cl *Cluster)Run(proxy, host string, w http.ResponseWriter,r *http.Request) {
-    conn := connection.New(host, r, w, tryThisConn)
+    conn := connection.New(host, r, w, tryThisConn, cl.log)
     err := cl.handleConnection(proxy, conn)
     if err != nil {
 	// TODO: do something?
